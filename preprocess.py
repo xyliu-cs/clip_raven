@@ -1,15 +1,23 @@
 import csv
 import glob
 import os
+import string
 import sys
+from matplotlib.patches import Rectangle
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 from matplotlib.colors import ListedColormap
 from tqdm import tqdm
 from multiprocessing import Pool, Manager, Lock
 
 CSV_FILE = './train.csv'
 OUTPUT_DIR = './train'
+
+def add_outline(ax, color='black', linewidth=2):
+    rect = Rectangle((0, 0), 1, 1, transform=ax.transAxes,
+                     color=color, fill=False, linewidth=linewidth)
+    ax.add_patch(rect)
 
 def preprocess_data(npz_file):
     try:
@@ -22,27 +30,33 @@ def preprocess_data(npz_file):
         gray_with_transparency[-1, -1] = 0
         transparent_cmap = ListedColormap(gray_with_transparency)
 
-        fig = plt.figure(figsize=(12, 12))
+        fig = plt.figure(figsize=(5, 5), dpi=100)
         images = data['image']
         target = data['target']
 
         for i in range(8):
-            ax = plt.subplot2grid((8, 4), ((i // 3)*2, i % 3), rowspan=2, colspan=1)
+            ax = plt.subplot2grid((5, 4), ((i // 3)*1, i % 3), rowspan=1, colspan=1)
             ax.imshow(images[i], cmap=transparent_cmap)
             ax.axis("off")
+            add_outline(ax, color='grey', linewidth=3)
 
-        ax = plt.subplot2grid((8, 4), (4, 2), rowspan=2, colspan=1)
-        ax.text(0.5, 0.4, "?", fontsize=80, ha="center", va="center")
+        ax = plt.subplot2grid((5, 4), (2, 2), rowspan=1, colspan=1)
+        ax.text(0.5, 0.4, "?", fontsize=60, ha="center", va="center")
         ax.axis("off")
 
-        for i in range(8):
-            ax = plt.subplot2grid((8, 4), (6 + i // 4, i % 4), rowspan=1, colspan=1)
-            ax.imshow(images[8 + i], cmap=transparent_cmap)
-            choice_label = f"{i+1}"
-            ax.set_title(choice_label, fontsize=12, pad=0, loc='center')
-            ax.axis("off")
+        line = mlines.Line2D([0.05, 0.95], [0.41, 0.41], color='black', linewidth=2, transform=fig.transFigure, figure=fig)
+        fig.add_artist(line)
 
-        plt.tight_layout()
+        for i in range(8):
+            ax = plt.subplot2grid((5, 4), (3 + (i // 4)*1, i % 4), rowspan=1, colspan=1)
+            ax.imshow(images[8 + i], cmap=transparent_cmap)
+            # choice_label = f"{i+1}"
+            # ax.set_title(choice_label, fontsize=12, pad=0, loc='center')
+            ax.text(0.5, -0.1, string.ascii_uppercase[i], fontsize=12, ha='center', va='center', transform=ax.transAxes)
+            ax.axis("off")
+            add_outline(ax, color='grey', linewidth=3)
+
+        # plt.tight_layout()
         plt.subplots_adjust(top=0.95, bottom=0.05, left=0.05, right=0.95)
         plt.savefig(out_img, format='png')
         plt.close()
@@ -59,7 +73,7 @@ def process_and_write(args):
         with lock:
             with open(CSV_FILE, mode='a', newline='', encoding='utf-8') as file:
                 writer = csv.writer(file)
-                writer.writerow([png_img, target])
+                writer.writerow([png_img, string.ascii_uppercase[target]])
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
